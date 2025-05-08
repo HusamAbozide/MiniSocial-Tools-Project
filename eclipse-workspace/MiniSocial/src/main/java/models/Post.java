@@ -18,18 +18,31 @@ public class Post {
 	
 	@ManyToOne
 	@JoinColumn(name = "authorId")
+	
 	private User author;
 	
 	@ManyToOne
 	@JoinColumn(name = "groupId")
+	
 	private Group group;
 	
 	@OneToMany(mappedBy = "post")
+	
 	private List<Comment> comments;
 	
+	
 	@OneToMany(mappedBy= "post")
+	
 	private List<Like> likes;
 	
+	
+	public void setAuthor(User a) {
+		this.author = a;
+	}
+	
+	public void setGroup(Group gp) {
+		this.group = gp;
+	}
 	
 
 	public void setPostId(int postId) {
@@ -45,6 +58,10 @@ public class Post {
 
 	public void setImageUrl(String imageUrl) {
 	    this.imageUrl = imageUrl;
+	}
+	
+	public User getAuthor() {
+		return author;
 	}
 	
 	public String getImageUrl() {
