@@ -57,15 +57,22 @@ public class PostServiceImpl implements PostService{
     }
 
     @Override
-    public boolean updatePost(int postId, String newContent, String newImageUrl, int userId) {
+    public boolean updatePost(int postId, Post updatedPost, int userId) {
         try {
-            Post post = em.find(Post.class, postId);
-            if (post == null || post.getAuthor().getUserId() != userId) return false;
+            Post storedPost = em.find(Post.class, postId);
+            
+            if (storedPost == null || storedPost.getAuthor().getUserId() != userId) {
+            	return false;
+            }
 
-            post.setContent(newContent);
-            post.setImageUrl(newImageUrl);
-            em.merge(post);
+            storedPost.setContent(updatedPost.getContent());
+            
+            storedPost.setImageUrl(updatedPost.getImageUrl());
+            
+            em.merge(storedPost);
             return true;
+            
+            
         } catch (Exception e) {
             System.out.println("Exception in updatePost: " + e.getMessage());
             return false;
@@ -114,24 +121,32 @@ public class PostServiceImpl implements PostService{
     }
 
     @Override
-    public boolean commentOnPost(int postId, int userId, String content) {
+    public boolean commentPost(Comment comment) {
         try {
-            Post post = em.find(Post.class, postId);
-            User user = em.find(User.class, userId);
+            if (comment == null || comment.getUser() == null || comment.getPost() == null) {
+                return false;
+            }
+            Post post = em.find(Post.class, comment.getPost().getPostId());
+            
+            User user = em.find(User.class, comment.getUser().getUserId());
+
             if (post == null || user == null) return false;
 
-            Comment comment = new Comment();
             comment.setPost(post);
+            
             comment.setUser(user);
-            comment.setContent(content);
 
             em.persist(comment);
             return true;
+            
         } catch (Exception e) {
+        	
             System.out.println("Exception in commentOnPost: " + e.getMessage());
+            
             return false;
         }
     }
+
 
 	
 }

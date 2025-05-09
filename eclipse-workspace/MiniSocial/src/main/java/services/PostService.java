@@ -2,6 +2,7 @@ package services;
 
 import java.util.List;
 
+import models.Comment;
 import models.Post;
 
 
@@ -11,11 +12,11 @@ public interface PostService {
 	
 	List<Post> getFeed(int userId);
 	
-    boolean updatePost(int postId, String newContent, String newImageUrl, int userId);
+    boolean updatePost(int postId, Post updatedPost, int userId);
     
     boolean deletePost(int postId, int userId);
     
     boolean likePost(int postId, int userId);
     
-    boolean commentOnPost(int postId, int userId, String commentText);
+    boolean commentPost(Comment comment);
 }
