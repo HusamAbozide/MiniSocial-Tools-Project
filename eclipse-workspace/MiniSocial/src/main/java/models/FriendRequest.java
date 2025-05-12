@@ -24,11 +24,11 @@ public class FriendRequest {
 	private int requestId;
 	
 	@ManyToOne
-	@JoinColumn(name="userId", nullable = false)
+	@JoinColumn(name="sender_id", nullable = false)
 	private User sender;
 	
 	@ManyToOne
-	@JoinColumn(name="userId", nullable = false)
+	@JoinColumn(name="reciever_id", nullable = false)
 	private User reciever;
 	
 	@Enumerated(EnumType.STRING)

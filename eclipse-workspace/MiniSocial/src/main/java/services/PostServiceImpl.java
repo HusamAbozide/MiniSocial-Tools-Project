@@ -2,24 +2,44 @@ package services;
 
 import java.util.List;
 
+import javax.annotation.Resource;
+import javax.annotation.security.RolesAllowed;
 import javax.ejb.Stateless;
+import javax.inject.Inject;
+import javax.jms.JMSContext;
+import javax.jms.Queue;
+import javax.jms.TextMessage;
 import javax.persistence.*;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import models.Post;
 import models.User;
+import notification.EventNotification;
+import notification.EventNotification.notificationType;
 import models.Group;
 import models.Like;
 import models.Comment;
 
 
+
 @Stateless
+@RolesAllowed({"USER", "ADMIN"})
 public class PostServiceImpl implements PostService{
+	
+	@Inject
+	private JMSContext jmscontext;
+	
+	
+	@Resource(lookup = "java:/jms/queue/NotificationQueue")
+	private Queue notifications;
+
 	
 	@PersistenceContext
     private EntityManager em;
 
     @Override
-    public boolean createPost(Post post, int userId, Integer groupId) {
+    public boolean createPost(Post post, int userId, Integer groupId) { // groupId might be null 
         try {
             User user = em.find(User.class, userId);
             if (user == null) return false;
@@ -34,7 +54,9 @@ public class PostServiceImpl implements PostService{
 
             em.persist(post);
             return true;
+            
         } catch (Exception e) {
+        	
             System.out.println("Exception in createPost: " + e.getMessage());
             return false;
         }
@@ -43,11 +65,10 @@ public class PostServiceImpl implements PostService{
     @Override
     public List<Post> getFeed(int userId) {
         try {
-            // Get user's own posts and their friends' posts (assuming a "Connection" model exists)
             return em.createQuery(
-                "SELECT p FROM Post p WHERE p.author.id = :userId OR p.author.id IN (" +
-                "SELECT c.friend.id FROM Connection c WHERE c.user.id = :userId AND c.status = 'ACCEPTED'" +
-                ") ORDER BY p.postId DESC", Post.class)
+                "select p FROM Post p where p.author.id = :userId or p.author.id IN (" +
+                "select c.friend.id from Connection c WHERE c.user.id = :userId and c.status = 'ACCEPTED'" +
+                ") order by p.postId DESC", Post.class)
                 .setParameter("userId", userId)
                 .getResultList();
         } catch (Exception e) {
@@ -86,9 +107,13 @@ public class PostServiceImpl implements PostService{
             if (post == null || post.getAuthor().getUserId() != userId) return false;
 
             em.remove(post);
+            
             return true;
+            
         } catch (Exception e) {
+        	
             System.out.println("Exception in deletePost: " + e.getMessage());
+            
             return false;
         }
     }
@@ -109,12 +134,18 @@ public class PostServiceImpl implements PostService{
             if (!query.getResultList().isEmpty()) return false;
 
             Like like = new Like();
+            
             like.setPost(post);
+            
             like.setUser(user);
 
             em.persist(like);
+            
+            notify(post.getAuthor().getUserId(), notificationType.POST_LIKED, user.getUsername()+ " liked you post :)");
             return true;
+            
         } catch (Exception e) {
+        	
             System.out.println("Exception in likePost: " + e.getMessage());
             return false;
         }
@@ -137,6 +168,9 @@ public class PostServiceImpl implements PostService{
             comment.setUser(user);
 
             em.persist(comment);
+            
+            notify(post.getAuthor().getUserId(), notificationType.POST_COMMENTED, user.getUsername()+" commented on your post :)");
+            
             return true;
             
         } catch (Exception e) {
@@ -145,6 +179,28 @@ public class PostServiceImpl implements PostService{
             
             return false;
         }
+    }
+    
+private void notify(int userId, notificationType type, String message) {
+    	
+    	try {
+    		EventNotification not = new EventNotification(userId, type, message);
+    		
+//    		JsonReader jsonReader = Json.createReader(new StringReader(body));
+    		
+    		ObjectMapper mapper = new ObjectMapper();
+    		
+    		String body = mapper.writeValueAsString(not);
+    		
+    		TextMessage msg = jmscontext.createTextMessage(body);
+    		
+    		jmscontext.createProducer().send(notifications, msg);
+    		
+
+    	}catch(Exception e) {
+            System.out.println("Exception in notify(): " + e.getMessage());
+    	}
+    	
     }
 
 
