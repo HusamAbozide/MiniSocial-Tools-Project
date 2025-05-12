@@ -1,6 +1,5 @@
 package models;
 
-import javax.ejb.Stateless;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -9,12 +8,11 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.OneToMany;
-import javax.validation.constraints.NotNull;
 
 import java.util.List;
 import java.util.Objects;
 
-@Stateless
+
 @Entity
 public class User {
 	
@@ -26,7 +24,7 @@ public class User {
 	@GeneratedValue(strategy = GenerationType.AUTO)
 	private int userId;
 	
-	@Id
+	@Column(unique = true, nullable = false)
 	private String email;
 	
 	
@@ -39,8 +37,9 @@ public class User {
     @Column(length=200)
     private String bio;
 	
-    @Column(nullable = false)
+    
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private Role role;
     
     @OneToMany(mappedBy = "sender")
@@ -58,12 +57,15 @@ public class User {
     @OneToMany(mappedBy = "user")
     private List<Like> likes;
     
-    @OneToMany(mappedBy = "creater")
+    @OneToMany(mappedBy = "creator")
     private List<Group> createdGroups;
     
     
     
 	
+	public Role getRole() {
+		return role;
+	}
 	
 	public int getUserId() {
 	        return userId;
@@ -88,6 +90,10 @@ public class User {
     	
         return bio;
     }
+   
+   public void setRole(Role r) {
+	   this.role = r;
+   }
     
     public void setUserId(int userId) {
         this.userId = userId;

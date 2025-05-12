@@ -15,13 +15,22 @@ public class Comment {
 	
 	@ManyToOne
 	@JoinColumn(name = "userId")
-	private User user; // comment writer
+	private User author; 
 	
 	@ManyToOne
 	@JoinColumn(name = "postId")
-	private Post post; // the post of the comment
+	private Post post; 
 	
 	
+	
+	public User getUser() {
+		
+		return author;
+	}
+	
+	public Post getPost() {
+		return post;
+	}
 	
 	public int getCommentId() {
 		return commentId;
@@ -32,7 +41,7 @@ public class Comment {
 	}
 	
 	public void setUser(User u) {
-		this.user = u;
+		this.author = u;
 	}
 	
 	public void setPost(Post p) {

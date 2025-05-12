@@ -1,17 +1,36 @@
 package services;
 
+import javax.annotation.Resource;
+import javax.annotation.security.RolesAllowed;
 import javax.ejb.Stateless;
 import javax.inject.Inject;
 import javax.jms.JMSContext;
+import javax.jms.Queue;
+import javax.jms.TextMessage;
 import javax.persistence.*;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import models.Group;
 import models.GroupMember;
 import models.GroupMember.GroupRole;
 import models.User;
+import notification.EventNotification;
+import notification.EventNotification.notificationType;
 
+
+@RolesAllowed({"AMDIN", "USER"})
 @Stateless
 public class GroupServiceImpl implements GroupService {
+	
+	
+	@Inject
+	private JMSContext jmscontext;
+	
+	
+	@Resource(lookup = "java:/jms/queue/NotificationQueue")
+	private Queue notifications;
+
 	
 	@PersistenceContext
 	private EntityManager em;
@@ -21,6 +40,28 @@ public class GroupServiceImpl implements GroupService {
 	
 //	@Resource(lookup = "java:/jms/queue/GroupNotifications")
 //    private Queue groupQueue;
+	
+private void notify(int userId, notificationType type, String message) {
+    	
+    	try {
+    		
+    		EventNotification not = new EventNotification(userId, type, message);
+    	    		
+    		ObjectMapper mapper = new ObjectMapper();
+    		
+    		String body = mapper.writeValueAsString(not);
+    		
+    		TextMessage msg = jmscontext.createTextMessage(body);
+    		
+    		jmscontext.createProducer().send(notifications, msg);
+    		
+
+    	}
+    	catch(Exception e) {
+            System.out.println("Exception in notify(): " + e.getMessage());
+    	}
+    	
+}
 	
 	private GroupMember findMembership(int groupId, int userId) {
         return em.createQuery("SELECT gm FROM GroupMember gm WHERE gm.group.id = :gid AND gm.user.id = :uid", GroupMember.class).setParameter("gid", groupId).setParameter("uid", userId)
@@ -86,11 +127,15 @@ public class GroupServiceImpl implements GroupService {
         member.setGroup(group);
         member.setUser(user);
         member.setRole(GroupRole.MEMBER);
-        member.setIsApproved(group.isOpen()); // auto-approve if open
+        member.setIsApproved(group.isOpen());
         
-//        if (group.isOpen()) {
-//            notify(user.getUsername() + " joined group " + group.getName());
-//        }
+        if (group.isOpen()) {
+            notify(user.getUserId(), notificationType.GROUP_JOINED, "You joined " +group.getName()+" :)" );
+        }
+        else {
+        	notify(group.getCreator().getUserId(), notificationType.GROUP_REQUESTED, user.getUsername()+" requested to join your group");
+        	
+        }
        
         em.persist(member);
         return true;
@@ -111,10 +156,13 @@ public class GroupServiceImpl implements GroupService {
 			}
 			
 			GroupMember gm = findMembership(groupId, userId);
+			
 			if(gm != null && !gm.getIsApproved()) {
 				gm.setIsApproved(true);
+				
 				em.merge(gm);
-	            //notify(gm.getUser().getUsername() + " was approved to join " + gm.getGroup().getName());
+	            
+				notify(userId, notificationType.GROUP_APPROVED, "Your request to join "+ gm.getGroup().getName()+" was APPROVED :)");
 				return true;
 			}
 			return false;
@@ -135,9 +183,12 @@ public class GroupServiceImpl implements GroupService {
 			}
 			
 			GroupMember gm = findMembership(groupId, userId);
+			
 			if(gm != null && !gm.getIsApproved()) {
+				
 				em.remove(gm);
-	            //notify(gm.getUser().getUsername() + " was approved to join " + gm.getGroup().getName());
+				
+				notify(userId, notificationType.GROUP_REJECTED, "Your request to join "+ gm.getGroup().getName()+" was REJECTED :(");
 				return true;
 			}
 			return false;
@@ -180,6 +231,8 @@ public class GroupServiceImpl implements GroupService {
 				gm.setRole(GroupRole.ADMIN);
 				em.merge(gm);
 				
+				notify(userId, notificationType.GROUP_PROMOTED, "You were promoted to Admin by the creator "+gm.getGroup().getCreator().getUsername()+" :)");
+			
 				return true;
 			}
 			return false;
@@ -204,6 +257,7 @@ public class GroupServiceImpl implements GroupService {
 			
 				em.merge(gm);
 				
+				notify(userId, notificationType.GROUP_KICKED, "You were kicked out from the group by the admin "+gm.getGroup().getCreator().getUsername()+" :)");
 				return true;
 			}
 			return false;
@@ -240,6 +294,7 @@ public class GroupServiceImpl implements GroupService {
 	}
 	
 	
+}
 	
 	
 	
@@ -247,4 +302,4 @@ public class GroupServiceImpl implements GroupService {
 	
 	
 
-}
+

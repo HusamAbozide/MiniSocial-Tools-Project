@@ -8,7 +8,7 @@ public interface UserService {
 	
 	public boolean Userlogin(User u);
 	
-	public boolean deleteUser(String username);
+	public boolean deleteUser(int targetId, int callerId, boolean isAdmin);
 	
 	public User getUser(String username);
 	
